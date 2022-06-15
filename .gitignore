@@ -1,6 +1,5 @@
 .vscode
 .idea
-.mvn
 
 # Compiled class file
 *.class
