@@ -7,6 +7,7 @@ import org.springframework.data.rest.webmvc.ResourceNotFoundException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import javax.validation.Valid;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -22,7 +23,7 @@ public class UserController {
         return this.userRepository.findAll();
     }
     @PostMapping("/users")
-    public User createUser(@RequestBody User user) {
+    public User createUser(@RequestBody @Valid User user) {
         return this.userRepository.save(user);
     }
     // get employee by id rest api

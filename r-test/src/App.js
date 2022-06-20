@@ -1,11 +1,17 @@
-import UserComponent from './components/UserComponent';
+import React from 'react'
+import { Routes, Route, useRoutes, BrowserRouter as Router} from 'react-router-dom'
+import { Login } from './components/login'
+import { RequireAuth } from './components/RequireAuth'
 
-function App() {
+const AppWrapper = () => {
   return (
-    <div className="App">
-      <UserComponent></UserComponent>
-    </div>
+    <Router>
+      <Routes>
+        <Route path='/login' element={<Login />} />
+        <Route exact path='/profile' element={<RequireAuth/>}/>
+      </Routes>
+    </Router>
   );
-}
+};
 
-export default App;
+export default AppWrapper;

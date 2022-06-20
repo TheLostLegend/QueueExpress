@@ -1,163 +1,234 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import UserService from "../services/UserService";
 import { over } from 'stompjs';
 import SockJS from 'sockjs-client';
+import { useNavigate } from 'react-router-dom'
+import { useAuth } from './auth'
+import { Dropdown } from 'react-bootstrap'
 
 var stompClient = null;
 
+export const Users = () => {
+    const navigate = useNavigate();
+    const auth = useAuth();
+    const [users, setUsers] = useState([]);
+    const [userData, setUserData] = useState({
+        username: '',
+        connected: false
+    });
 
-class UserComponent extends React.Component {
-    constructor(props) {
-        super(props)
-        this.state = {
-            users: []
-        }
-        this.crDelUserTest = this.crDelUserTest.bind(this);
-        this.logOut = this.logOut.bind(this);
-    }
+    useEffect(() => {
+        connect();
+    }, []);
 
-    componentDidMount() {
+    const connect = () => {
         UserService.getUsers().then((response) => {
-            this.setState({ users: response.data });
+            setUsers(response.data);
+            if (!stompClient) {
+                console.log("stomp here")
+                let Sock = new SockJS('http://localhost:8083/ws');
+                stompClient = over(Sock);
+                stompClient.connect({}, onConnected, onError);
+            }
         });
-        if (!stompClient) {
-            let Sock = new SockJS('http://localhost:8083/ws');
-            stompClient = over(Sock);
-            stompClient.connect({}, this.onConnected, this.onError);
-        }
     }
 
-    onConnected = () => {
-        stompClient.subscribe('/chatroom', this.onMessageReceived);
-        this.userJoin();
+    const onConnected = () => {
+        console.log("update keke")
+        setUserData({ "username": JSON.parse(sessionStorage.getItem('user')), "connected": true });
+        stompClient.subscribe('/chatroom', onMessageReceived);
+        updateQueue();
     }
 
-    onError = (err) => {
+    const onError = (err) => {
         console.log(err);
     }
 
-    render() {
-        return (
-            <div>
+    const crDelUserTest = () => {
+        setUserData({ "username": JSON.parse(sessionStorage.getItem('user')), "connected": true });
+        var login = userData.username
+        var max = 0;
+        var position = 0;
+        users.map(
+            user => {
+                if (user.name === login) {
+                    position = user.queue_Num;
+                }
+                if (max < user.queue_Num) max = user.queue_Num
+            }
+        )
+        if (position === 0) {
+            let fount = document.getElementById('QueueFunc');
+            fount.innerHTML = "Leave Queue";
+            users.map(
+                user => {
+                    if (user.name === login) {
+                        user.queue_Num = max + 1
+                        UserService.updateUser(user, user.id);
+                    }
+                }
+            )
+        }
+        else {
+            let fount = document.getElementById('QueueFunc');
+            fount.innerHTML = "Join Queue";
+            users.map(
+                user => {
+                    if (user.name === login) {
+                        user.queue_Num = 0
+                        UserService.updateUser(user, user.id);
+                    }
+                    if (user.queue_Num > position) {
+                        user.queue_Num = user.queue_Num - 1;
+                        UserService.updateUser(user, user.id);
+                    }
+                }
+            )
+        }
+        updateQueue();
+    }
+
+    const logOut = () => {
+        var login = userData.username
+        var needId = 12345;
+        var position = 0;
+        users.map(
+            user => {
+                if (user.name === login) {
+                    needId = user.id;
+                    position = user.queue_Num;
+                }
+            }
+        )
+
+        if (!(position === 0)) {
+            users.map(
+                user => {
+                    if (user.name === login) {
+                        user.queue_Num = 0
+                        UserService.updateUser(user, user.id);
+                    }
+                    if (user.queue_Num > position) {
+                        user.queue_Num = user.queue_Num - 1;
+                        UserService.updateUser(user, user.id);
+                    }
+                }
+            )
+        }
+        UserService.deleteUser(needId);
+        updateQueue();
+        sessionStorage.removeItem('user');
+        navigate('/login')
+    }
+
+    const updateQueue = () => {
+        setUserData({ "username": JSON.parse(sessionStorage.getItem('user')), "connected": true });
+        let chatMessage = {
+            userName: userData.username,
+            content: "",
+            action: "UPDATE_MY_QUEUE"
+        };
+        console.log(chatMessage);
+        stompClient.send("/app/message", {}, JSON.stringify(chatMessage));
+    }
+
+    const onMessageReceived = (payload) => {
+        sleep(100);
+        let payloadData = JSON.parse(payload.body);
+        switch (payloadData.action) {
+            case "UPDATE_MY_QUEUE":
+                console.log(payloadData.userName, "nice update");
+                UserService.getUsers().then((response) => {
+                    setUsers(response.data);
+                });
+                break;
+        }
+    }
+
+    const sleep = (milliseconds) => {
+        const date = Date.now();
+        let currentDate = null;
+        do {
+            currentDate = Date.now();
+        } while (currentDate - date < milliseconds);
+    }
+
+    return (
+        <div>
+            <header>
+                <nav className="navbar navbar-light bg-light headernavbar">
+                    <Dropdown>
+                        <Dropdown.Toggle as={CustomToggle} id="dropdown-actions">
+                            Actions
+                        </Dropdown.Toggle>
+
+                        <Dropdown.Menu>
+                            <Dropdown.Item id="QueueFunc" onClick={crDelUserTest}>Join Queue</Dropdown.Item>
+                        </Dropdown.Menu>
+                    </Dropdown>
+
+                    <Dropdown>
+                        <Dropdown.Toggle as={CustomToggle} id="dropdown-student">
+                            {userData.username}
+                        </Dropdown.Toggle>
+
+                        <Dropdown.Menu align={{ lg: 'end' }}>
+                            <Dropdown.Item onClick={logOut}>Logout</Dropdown.Item>
+                        </Dropdown.Menu>
+                    </Dropdown>
+                </nav>
+            </header>
+            <main className="main_new">
                 <h1 className="text-center">Queue Express</h1>
-                <button onClick={this.crDelUserTest}>Join/Leave Queue</button>
-                <table className="table table-striped" id="usersTable">
+                <table className="table_new" id="usersTable">
                     <thead>
                         <tr>
                         </tr>
                     </thead>
                     <tbody>
                         {
-                            this.state.users.map(
-                                user =>
-                                    <tr key={user.id}>
-                                        <td>{user.name}</td>
-                                        <td>{user.queue_Num}</td>
-                                    </tr>
-                            )
+                            users
+                                .filter(user => user.queue_Num !== 0)
+                                .sort(({ queue_Num: previous }, { queue_Num: current }) => previous - current)
+                                .map(
+                                    user =>
+                                        <tr className="table_row" key={user.id}>
+                                            <td>{user.name}</td>
+                                            <td>{user.queue_Num}</td>
+                                        </tr>
+                                )
                         }
                     </tbody>
                 </table>
-            </div>
-        )
-    }
-
-    crDelUserTest(){
-        var login = "Harry"
-        var max = 0;
-        var needId = 12345;
-        var position = 0;
-        this.state.users.map(
-            user => {
-                if (user.name === login) {
-                    needId = user.id;
-                    position = user.queue_Num;
-                }
-                if (max < user.queue_Num) max = user.queue_Num
-            }
-        )
-        if (needId === 12345){
-            var user = {name : login, queue_Num: max + 1};
-            UserService.createUser(user);
-        }
-        else{
-            UserService.deleteUser(needId);
-            this.state.users.map(
-                user => {
-                    if (user.queue_Num > position) {
-                        user.queue_Num = user.queue_Num - 1;
-                        UserService.updateUser(user, user.id);
-                    }
-                }
-            )
-        }
-        this.updateQueue();
-    }
-
-    logOut(){
-        var login = "Harry"
-        var needId = 12345;
-        var position = 0;
-        this.state.users.map(
-            user => {
-                if (user.name === login) {
-                    needId = user.id;
-                    position = user.queue_Num;
-                }
-            }
-        )
-        if (!needId === 12345){
-            UserService.deleteUser(needId);
-            this.state.users.map(
-                user => {
-                    if (user.queue_Num > position) {
-                        user.queue_Num = user.queue_Num - 1;
-                        UserService.updateUser(user, user.id);
-                    }
-                }
-            )
-        }
-        this.updateQueue();
-    }
-
-    updateQueue = () => {
-            let chatMessage = {
-                userName: "default",
-                content: "",
-                action: "UPDATE_MY_QUEUE"
-            };
-            console.log(chatMessage);
-            stompClient.send("/app/message", {}, JSON.stringify(chatMessage));
-    }
-
-    userJoin = () => {
-        let chatMessage = {
-            userName: "Harry2",
-            content: "",
-            action: "JOIN"
-        };
-        stompClient.send("/app/message", {}, JSON.stringify(chatMessage));
-    }
-
-    onMessageReceived = (payload) => {
-        console.log("ressss");
-        this.sleep(50).then(r => {
-            let payloadData = JSON.parse(payload.body);
-            switch (payloadData.action) {
-                case "UPDATE_MY_QUEUE":
-                    console.log(payloadData.userName, "nice update");
-                    UserService.getUsers().then((response) => {
-                        this.setState({ users: response.data });
-                    });
-                    break;
-            }
-      	})
-        
-    }
-
-    sleep = (milliseconds) => {
-        return new Promise(resolve => setTimeout(resolve, milliseconds))
-    }
+            </main>
+        </div>
+    )
+    
 }
 
-export default UserComponent
+const CustomToggle = React.forwardRef(({ children, onClick }, ref) => (
+    <span
+        style={{ cursor: "pointer" }}
+        onClick={(e) => {
+            e.preventDefault();
+            onClick(e);
+        }}
+    >
+        {children}
+        &#x25bc;
+    </span>
+));
+
+
+// if (!(user.queue_Num === 0)) {
+//     let fount = document.getElementById('my body');
+//     let tr = document.createElement('tr');
+//     let td1 = document.createElement('td');
+//     let td2 = document.createElement('td');
+//     td1.innerHTML = user.name;
+//     td2.innerHTML = user.queue_Num;
+//     tr.appendChild(td1);
+//     tr.appendChild(td2);
+//     fount.appendChild(tr);
+// }
+

@@ -1,6 +1,7 @@
 package com.model;
 
 import javax.persistence.*;
+import javax.validation.constraints.Size;
 import java.util.Objects;
 
 @Entity
@@ -9,7 +10,8 @@ public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private long id;
-    @Column(name = "name")
+    @Column(name = "name", unique=true)
+    @Size(min = 3, message = "student name should have at least 3 characters")
     private String name;
     @Column(name = "queue_num")
     private int queue_num;
