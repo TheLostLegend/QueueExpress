@@ -48,7 +48,7 @@ export const Users = () => {
         setUserData({ "username": JSON.parse(sessionStorage.getItem('user')), "connected": true });
         var login = userData.username
         var max = 0;
-        var position = 0;
+        var position = -1;
         users.map(
             user => {
                 if (user.name === login) {
@@ -69,7 +69,11 @@ export const Users = () => {
                 }
             )
         }
-        else {
+        else if (position === -1)
+        {   let fount = document.getElementById('QueueFunc');
+            fount.innerHTML = "Join For Real <3"; } 
+        else
+        {
             let fount = document.getElementById('QueueFunc');
             fount.innerHTML = "Join Queue";
             users.map(
