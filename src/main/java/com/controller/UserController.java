@@ -12,7 +12,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-@CrossOrigin(origins = "http://localhost:3000", allowedHeaders = "*")
+@CrossOrigin(origins = "https://shielded-savannah-83693.herokuapp.com/", allowedHeaders = "*")
 @RestController
 @RequestMapping(value = "/api/")
 public class UserController {

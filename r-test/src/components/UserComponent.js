@@ -26,7 +26,7 @@ export const Users = () => {
             setUsers(response.data);
             if (!stompClient) {
                 console.log("stomp here")
-                let Sock = new SockJS('http://localhost:8083/ws');
+                let Sock = new SockJS('https://arcane-sierra-36888.herokuapp.com/ws');
                 stompClient = over(Sock);
                 stompClient.connect({}, onConnected, onError);
             }

@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const USERS_REST_API_URL = 'http://localhost:8083/api/users';
+const USERS_REST_API_URL = 'https://arcane-sierra-36888.herokuapp.com/api/users';
 
 class UserService {
     getUsers() {
